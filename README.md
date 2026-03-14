@@ -1,48 +1,181 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
-# CRW-Extension
-Browser extension that shows a popup and notifications when the site, product, or service you're viewing has an article on the Consumer Rights Wiki.
-## Install
-- Install on Chrome, Edge and Brave
-  https://chromewebstore.google.com/detail/consumer-rights-wiki/bppajinomefndbbmopljhbdfefnefdha
-- Install on Firefox
-  https://addons.mozilla.org/firefox/addon/consumer-rights-wiki/
-## Contributing
-### Technical Contributions
-Contributions are welcome!
-Please read the [CONTRIBUTING.md](CONTRIBUTING.md) guide for details on how to ask questions, report bugs, suggest enhancements, and submit Pull Requests.  
-You can also check the [project board](https://github.com/FULU-Foundation/CRW-Extension/projects) and look for issues labelled **good first issue** to get started.
-### Editorial and Wiki Contributions
-The extension matches sites and services against data sourced from the [Consumer Rights Wiki](https://consumerrights.wiki). You can contribute in two ways:
-- **Editorial** - Help improve or add articles directly on the [Consumer Rights Wiki](https://consumerrights.wiki)
-- **Cargo data** - Help add structured metadata that powers the extension's matching. You can help by contributing data at the [Cargo completion project](https://consumerrights.wiki/w/Projects:Cargo-complete). A [daily Cargo report](https://consumerrights.wiki/w/Projects:Cargo-complete/report) is also available, which tracks data quality and helps ensure the extension's matching is as accurate as possible.
-### Community & Discussions
-Have a question, idea, or just want to connect with other users? Head over to [Discussions](https://github.com/FULU-Foundation/CRW-Extension/discussions) to get involved.
-# Development
-## Clone and build the extension:
-### Chrome & Firefox
+
+# CRW-Extension (Self-Hosted Fork)
+
+A fork of the [Consumer Rights Wiki extension](https://github.com/FULU-Foundation/CRW-Extension) that reduces permissions and keeps page content reading on your own infrastructure.
+
+## Goals
+
+- **Minimal permissions** — No "Access your data for all websites". The extension only needs `tabs`, `storage`, and optional access to your self-hosted server.
+- **No page content reading** — A server you control fetches and renders pages with Puppeteer. The extension never reads DOM, forms, or page content.
+- **No auto popup** — Click the extension icon to see matches. Badge shows the count.
+- **Firefox sidebar option** — Use the sidebar instead of the popup (Firefox only).
+- **URL-only fallback** — When the server is unavailable, the extension falls back to URL matching only (no product-page matching).
+
+## Original Extension
+
+This project is a fork of [FULU-Foundation/CRW-Extension](https://github.com/FULU-Foundation/CRW-Extension). The original extension:
+
+- Is available on [Chrome Web Store](https://chromewebstore.google.com/detail/consumer-rights-wiki/bppajinomefndbbmopljhbdfefnefdha) and [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/consumer-rights-wiki/)
+- Uses a content script and broader permissions for automatic matching on page load
+
+## Architecture
+
+- **Extension** — Gets tab URL, sends it to your server (or uses URL-only fallback), displays matches in popup/sidebar.
+- **Server** — Fetches pages with Puppeteer, extracts metadata, runs matching, caches results. Includes admin UI for tokens and cache settings.
+
+---
+
+## Server Setup (Docker)
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Git (to clone the repo)
+
+### 1. Clone and configure
+
 ```shell
-git clone https://github.com/FULU-Foundation/CRW-Extension.git
+git clone <this-repo-url>
 cd CRW-Extension
+```
+
+Create a `.env` file (copy from `.env.example`):
+
+```shell
+cp .env.example .env
+```
+
+Edit `.env` and set a strong `ADMIN_PASSWORD`:
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-secure-password
+```
+
+### 2. Start the stack
+
+```shell
+docker compose up -d
+```
+
+The server listens on port 3000. Open the admin UI at **http://localhost:3000/admin/** (or `http://your-server-ip:3000/admin/` if remote).
+
+### 3. Create a token
+
+1. Log in with your admin credentials
+2. Click **Create Token**
+3. Copy the token and paste it into the extension options
+
+### Updating the server
+
+Docker does not auto-update. To pull the latest image and restart:
+
+```shell
+git pull
+docker compose build --no-cache server
+docker compose up -d server
+```
+
+Or, to rebuild from your local source after pulling:
+
+```shell
+git pull
+docker compose up -d --build server
+```
+
+---
+
+## Portainer Setup
+
+[Portainer](https://www.portainer.io/) provides a web UI for managing Docker. To run the CRW server via Portainer:
+
+### Option A: Deploy from Git (recommended)
+
+1. In Portainer, go to **Stacks** → **Add stack**
+2. Name it `crw-server`
+3. Under **Build method**, choose **Git repository**
+4. Repository URL: your fork’s clone URL (e.g. `https://github.com/your-user/CRW-Extension.git`)
+5. Compose path: `docker-compose.yml`
+6. Add environment variables:
+   - `ADMIN_USERNAME` = `admin` (or your choice)
+   - `ADMIN_PASSWORD` = your secure password
+7. Deploy the stack
+
+### Option B: Deploy from upload
+
+1. Clone the repo locally and create your `.env`
+2. In Portainer, **Stacks** → **Add stack**
+3. Choose **Web editor**
+4. Paste the contents of `docker-compose.yml`
+5. Under **Environment variables**, add `ADMIN_USERNAME` and `ADMIN_PASSWORD`
+6. Deploy
+
+### Portainer: Updating the server
+
+1. Go to **Stacks** → select `crw-server`
+2. Click **Editor** to change the stack definition, or **Pull and redeploy** if using a Git-based stack
+3. For Git stacks: **Pull and redeploy** fetches the latest commit and rebuilds
+4. For uploaded stacks: update the stack YAML, then **Update the stack**
+
+### Portainer: Exposing the server
+
+- Ensure port **3000** is published (it is by default in `docker-compose.yml`)
+- If behind a reverse proxy, point it to the Docker host on port 3000
+
+---
+
+## Extension Install
+
+This fork is not published to browser stores. Build from source:
+
+```shell
 npm ci
 npm run build
 ```
-The compiled extension will be output in the `dist` folder. Alternatively run ```npm run build:watch``` and vite will watch for changes and update the extension automatically during development.
-## Development Installation
-### For Chrome:
-1. Open Extension settings: e.g. `chrome://extensions/` or `brave://extensions/` etc.
-2. Enable Developer Mode
-3. Click `Load Unpacked`
-4. Navigate to the unzipped folder.
-### For Firefox:
-1. Open: about:debugging#/runtime/this-firefox
-2. Expand 'Temporary Extensions'
-3. Click 'Load Temporary Add-on...'
-4. Navigate to the unzipped folder and open `manifest.json`
-## Formatting
-```shell
-npm run format
-```
-## Disclaimer
-The source code for the CRW Extension is licensed under the MIT License.
 
-All references found by this software are not part of CRW Extension and are provided to the end-user under **CC BY-SA 4.0** licensing by the originating site [consumerrights.wiki](https://consumerrights.wiki).
+Load the unpacked extension from the `dist` folder:
+
+- **Chrome/Edge/Brave**: `chrome://extensions/` → Enable Developer mode → Load unpacked → select `dist/chrome`
+- **Firefox**: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → select `dist/firefox/manifest.json`
+
+Configure the extension with your server URL and auth token in the options page. Use **Test connection** to verify.
+
+---
+
+## Development
+
+```shell
+npm ci
+npm run build
+# Or: npm run build:watch
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+---
+
+## Troubleshooting
+
+**Port 3000 already in use** — Often a previous server instance. On Windows:
+
+```powershell
+netstat -ano | findstr :3000
+taskkill /PID <pid> /F
+```
+
+Or stop containers first: `docker compose down`
+
+**Invalid token** — Tokens are stored in Redis and persist across restarts. Create a new token in the admin UI and update the extension.
+
+---
+
+## Data Source
+
+The extension matches against data from the [Consumer Rights Wiki](https://consumerrights.wiki). You can contribute at the [Cargo completion project](https://consumerrights.wiki/w/Projects:Cargo-complete).
+
+## Disclaimer
+
+The source code is licensed under the MIT License.
+
+All references found by this software are not part of CRW Extension and are provided under **CC BY-SA 4.0** by [consumerrights.wiki](https://consumerrights.wiki).

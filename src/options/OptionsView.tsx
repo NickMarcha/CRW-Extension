@@ -18,6 +18,8 @@ const REFRESH_INTERVAL_OPTIONS = [
   { value: 7 * 24 * 60 * 60 * 1000, label: "1 week" },
 ] as const;
 
+export type DisplayMode = "popup" | "sidebar";
+
 export type OptionsViewProps = {
   warningsEnabled: boolean;
   suppressedDomains: string[];
@@ -28,11 +30,24 @@ export type OptionsViewProps = {
   refreshError: string | null;
   lastRefreshError: string | null;
   loading: boolean;
+  serverUrl: string;
+  authToken: string;
+  connectionStatus: "idle" | "testing" | "ok" | "error";
+  connectionError: string | null;
+  displayMode: DisplayMode;
+  hasSidebarApi: boolean;
   onToggleWarnings: (enabled: boolean) => void;
   onChangeRefreshInterval: (refreshIntervalMs: number) => void;
   onRefreshNow: () => void;
   onRemoveSuppressedDomain: (domain: string) => void;
   onRemoveSuppressedPageName: (pageName: string) => void;
+  onServerUrlChange: (url: string) => void;
+  onAuthTokenChange: (token: string) => void;
+  onSaveServerConfig: () => void;
+  onTestConnection: () => void;
+  onDisplayModeChange: (mode: DisplayMode) => void;
+  onOpenServerDashboard: () => void;
+  onCheckForUpdates: () => void;
 };
 
 const formatLastRefreshed = (value: number | null): string => {
@@ -58,11 +73,24 @@ export const OptionsView = (props: OptionsViewProps) => {
     refreshError,
     lastRefreshError,
     loading,
+    serverUrl,
+    authToken,
+    connectionStatus,
+    connectionError,
+    displayMode,
+    hasSidebarApi,
     onToggleWarnings,
     onChangeRefreshInterval,
     onRefreshNow,
     onRemoveSuppressedDomain,
     onRemoveSuppressedPageName,
+    onServerUrlChange,
+    onAuthTokenChange,
+    onSaveServerConfig,
+    onTestConnection,
+    onDisplayModeChange,
+    onOpenServerDashboard,
+    onCheckForUpdates,
   } = props;
 
   return (
@@ -127,6 +155,206 @@ export const OptionsView = (props: OptionsViewProps) => {
             </div>
           </div>
         </div>
+
+        <section
+          style={{
+            border: `1px solid ${PAGE_CSS.border}`,
+            borderRadius: "12px",
+            padding: "14px",
+            background: PAGE_CSS.subtleBg,
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "16px",
+              lineHeight: 1.2,
+              fontWeight: 700,
+              color: PAGE_CSS.text,
+            }}
+          >
+            Server (Self-Hosted)
+          </h2>
+          <p
+            style={{
+              margin: "6px 0 10px 0",
+              fontSize: "13px",
+              color: PAGE_CSS.muted,
+            }}
+          >
+            Connect to your CRW server for full matching. Leave empty to use
+            URL-only fallback.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+              marginBottom: "10px",
+            }}
+          >
+            <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ fontSize: "13px" }}>Server URL</span>
+              <input
+                type="url"
+                value={serverUrl}
+                onChange={(e) => onServerUrlChange(e.target.value)}
+                placeholder="http://localhost:3000"
+                style={{
+                  padding: "8px",
+                  borderRadius: "8px",
+                  border: `1px solid ${PAGE_CSS.border}`,
+                  background: "#fff",
+                  color: "#333",
+                }}
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ fontSize: "13px" }}>Auth Token</span>
+              <input
+                type="password"
+                value={authToken}
+                onChange={(e) => onAuthTokenChange(e.target.value)}
+                placeholder="Token from admin UI"
+                style={{
+                  padding: "8px",
+                  borderRadius: "8px",
+                  border: `1px solid ${PAGE_CSS.border}`,
+                  background: "#fff",
+                  color: "#333",
+                }}
+              />
+            </label>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={onSaveServerConfig}
+                disabled={loading}
+                style={{
+                  border: `1px solid ${PAGE_CSS.buttonBorder}`,
+                  background: PAGE_CSS.buttonBg,
+                  color: PAGE_CSS.buttonText,
+                  borderRadius: "8px",
+                  padding: "6px 12px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={onTestConnection}
+                disabled={loading || connectionStatus === "testing"}
+                style={{
+                  border: `1px solid ${PAGE_CSS.buttonBorder}`,
+                  background: PAGE_CSS.buttonBg,
+                  color: PAGE_CSS.buttonText,
+                  borderRadius: "8px",
+                  padding: "6px 12px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {connectionStatus === "testing"
+                  ? "Testing..."
+                  : "Test Connection"}
+              </button>
+              {connectionStatus === "ok" && (
+                <span style={{ fontSize: "12px", color: "#90EE90" }}>OK</span>
+              )}
+              {connectionStatus === "error" && connectionError && (
+                <span style={{ fontSize: "12px", color: "#FFE2E2" }}>
+                  {connectionError}
+                </span>
+              )}
+            </div>
+            {serverUrl.trim() && (
+              <p style={{ margin: "10px 0 0 0", fontSize: "13px" }}>
+                <button
+                  type="button"
+                  onClick={onOpenServerDashboard}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: PAGE_CSS.muted,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    padding: 0,
+                    fontSize: "13px",
+                  }}
+                >
+                  Open server dashboard →
+                </button>
+              </p>
+            )}
+          </div>
+        </section>
+
+        {hasSidebarApi && (
+          <section
+            style={{
+              border: `1px solid ${PAGE_CSS.border}`,
+              borderRadius: "12px",
+              padding: "14px",
+              background: PAGE_CSS.subtleBg,
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "16px",
+                lineHeight: 1.2,
+                fontWeight: 700,
+                color: PAGE_CSS.text,
+              }}
+            >
+              Display
+            </h2>
+            <p
+              style={{
+                margin: "6px 0 10px 0",
+                fontSize: "13px",
+                color: PAGE_CSS.muted,
+              }}
+            >
+              When you click the extension icon:
+            </p>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "8px",
+              }}
+            >
+              <input
+                type="radio"
+                name="displayMode"
+                checked={displayMode === "popup"}
+                onChange={() => onDisplayModeChange("popup")}
+              />
+              <span>Show popup</span>
+            </label>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <input
+                type="radio"
+                name="displayMode"
+                checked={displayMode === "sidebar"}
+                onChange={() => onDisplayModeChange("sidebar")}
+              />
+              <span>Show sidebar</span>
+            </label>
+          </section>
+        )}
 
         <section
           style={{
@@ -523,6 +751,24 @@ export const OptionsView = (props: OptionsViewProps) => {
             )}
           </div>
         </section>
+
+        <p style={{ fontSize: "12px", color: PAGE_CSS.muted, marginTop: "20px" }}>
+          <button
+            type="button"
+            onClick={onCheckForUpdates}
+            style={{
+              background: "none",
+              border: "none",
+              color: PAGE_CSS.muted,
+              textDecoration: "underline",
+              cursor: "pointer",
+              padding: 0,
+              fontSize: "12px",
+            }}
+          >
+            Check for updates
+          </button>
+        </p>
       </div>
     </div>
   );

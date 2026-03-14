@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRW Server Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    h1 { color: #004080; }
+    section { margin: 24px 0; padding: 16px; border: 1px solid #ccc; border-radius: 8px; }
+    button { padding: 8px 16px; cursor: pointer; margin: 4px; }
+    input[type="text"], input[type="password"] { padding: 8px; width: 200px; margin: 4px; }
+    .token { font-family: monospace; background: #f5f5f5; padding: 4px 8px; border-radius: 4px; }
+    .error { color: #c00; }
+    .success { color: #080; }
+  </style>
+</head>
+<body>
+  <h1>CRW Server Admin</h1>
+
+  <div id="login-section">
+    <section>
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button id="login-btn">Login</button>
+      <span id="login-error" class="error"></span>
+    </section>
+  </div>
+
+  <div id="dashboard" style="display: none;">
+    <section>
+      <h2>Tokens</h2>
+      <button id="create-token-btn">Create Token</button>
+      <div id="new-token" style="display: none; margin-top: 12px;">
+        <p>Copy this token for the extension:</p>
+        <code class="token" id="new-token-value"></code>
+      </div>
+      <h3>Existing Tokens</h3>
+      <ul id="token-list"></ul>
+    </section>
+
+    <section>
+      <h2>Cache</h2>
+      <p>Entries: <span id="cache-count">-</span></p>
+      <div style="margin: 16px 0;">
+        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <input type="checkbox" id="cache-enabled" checked>
+          <strong>Cache enabled</strong> — when disabled, every request fetches fresh
+        </label>
+        <label style="display: block; margin-bottom: 8px;">
+          <strong>Entry TTL</strong> — how long cached matches are kept
+        </label>
+        <select id="cache-ttl" style="padding: 8px; margin-right: 8px;">
+          <option value="900">15 minutes</option>
+          <option value="3600">1 hour</option>
+          <option value="21600">6 hours</option>
+          <option value="86400">24 hours</option>
+          <option value="604800">7 days</option>
+          <option value="custom">Custom (seconds)</option>
+        </select>
+        <input type="number" id="cache-ttl-custom" placeholder="seconds" min="60" max="31536000"
+          style="padding: 8px; width: 100px; display: none;">
+        <button id="save-cache-settings-btn">Save</button>
+        <span id="cache-settings-msg" class="success" style="margin-left: 8px;"></span>
+      </div>
+      <button id="clear-cache-btn">Clear Cache</button>
+    </section>
+
+    <section>
+      <h2>Server</h2>
+      <p>Version: <span id="server-version">-</span></p>
+      <p style="font-size: 13px; color: #666;">
+        To update: <code>git pull && docker compose build server && docker compose up -d server</code><br>
+        In Portainer: use <strong>Pull and redeploy</strong> on the stack.
+      </p>
+    </section>
+
+    <button id="logout-btn">Logout</button>
+  </div>
+
+  <script>
+    const api = (path, options = {}) =>
+      fetch(`/admin/api${path}`, { credentials: "include", ...options });
+
+    async function checkAuth() {
+      const r = await api("/tokens");
+      if (r.ok) {
+        document.getElementById("login-section").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        loadTokens();
+        loadCacheStats();
+        loadCacheSettings();
+        loadServerVersion();
+      }
+    }
+
+    document.getElementById("login-btn").onclick = async () => {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const err = document.getElementById("login-error");
+      const r = await api("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        err.textContent = "";
+        checkAuth();
+      } else {
+        err.textContent = data.error || "Login failed";
+      }
+    };
+
+    async function loadTokens() {
+      const r = await api("/tokens");
+      const data = await r.json();
+      const ul = document.getElementById("token-list");
+      ul.innerHTML = "";
+      for (const t of data.tokens || []) {
+        const li = document.createElement("li");
+        li.innerHTML = `<code class="token">${t.prefix}</code> <button data-id="${t.id}">Revoke</button>`;
+        li.querySelector("button").onclick = async () => {
+          await api(`/tokens/${encodeURIComponent(t.id)}`, { method: "DELETE" });
+          loadTokens();
+        };
+        ul.appendChild(li);
+      }
+    }
+
+    document.getElementById("create-token-btn").onclick = async () => {
+      const r = await api("/tokens", { method: "POST" });
+      const data = await r.json();
+      document.getElementById("new-token").style.display = "block";
+      document.getElementById("new-token-value").textContent = data.token;
+      loadTokens();
+    };
+
+    async function loadCacheStats() {
+      const r = await api("/cache/stats");
+      const data = await r.json();
+      document.getElementById("cache-count").textContent = data.entries ?? "-";
+    }
+
+    const TTL_PRESETS = { 900: "15 minutes", 3600: "1 hour", 21600: "6 hours", 86400: "24 hours", 604800: "7 days" };
+
+    async function loadCacheSettings() {
+      const r = await api("/cache/settings");
+      const data = await r.json();
+      document.getElementById("cache-enabled").checked = data.enabled !== false;
+      const ttl = data.ttlSeconds ?? 3600;
+      const sel = document.getElementById("cache-ttl");
+      const custom = document.getElementById("cache-ttl-custom");
+      if (TTL_PRESETS[ttl]) {
+        sel.value = String(ttl);
+        custom.style.display = "none";
+      } else {
+        sel.value = "custom";
+        custom.style.display = "inline";
+        custom.value = ttl;
+      }
+    }
+
+    document.getElementById("cache-ttl").onchange = function() {
+      const custom = document.getElementById("cache-ttl-custom");
+      custom.style.display = this.value === "custom" ? "inline" : "none";
+      if (this.value === "custom") custom.focus();
+    };
+
+    document.getElementById("save-cache-settings-btn").onclick = async () => {
+      const sel = document.getElementById("cache-ttl");
+      const custom = document.getElementById("cache-ttl-custom");
+      let ttlSeconds = parseInt(sel.value, 10);
+      if (sel.value === "custom") {
+        ttlSeconds = parseInt(custom.value, 10);
+        if (isNaN(ttlSeconds) || ttlSeconds < 60) {
+          document.getElementById("cache-settings-msg").textContent = "Enter at least 60 seconds";
+          document.getElementById("cache-settings-msg").className = "error";
+          return;
+        }
+      }
+      const body = {
+        ttlSeconds,
+        enabled: document.getElementById("cache-enabled").checked,
+      };
+      const r = await api("/cache/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const msg = document.getElementById("cache-settings-msg");
+      if (r.ok) {
+        msg.textContent = "Saved";
+        msg.className = "success";
+        loadCacheSettings();
+        setTimeout(() => { msg.textContent = ""; }, 2000);
+      } else {
+        const data = await r.json();
+        msg.textContent = data.error || "Failed";
+        msg.className = "error";
+      }
+    };
+
+    async function loadServerVersion() {
+      try {
+        const r = await fetch("/health");
+        const data = await r.json();
+        document.getElementById("server-version").textContent = data.version ?? "-";
+      } catch {
+        document.getElementById("server-version").textContent = "?";
+      }
+    }
+
+    document.getElementById("clear-cache-btn").onclick = async () => {
+      await api("/cache/clear", { method: "POST" });
+      loadCacheStats();
+    };
+
+    document.getElementById("logout-btn").onclick = async () => {
+      await api("/logout", { method: "POST" });
+      document.getElementById("login-section").style.display = "block";
+      document.getElementById("dashboard").style.display = "none";
+    };
+
+    checkAuth();
+  </script>
+</body>
+</html>

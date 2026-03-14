@@ -3,9 +3,10 @@
   "name": "Consumer Rights Wiki",
   "version": "1.0.0",
   "author": "jake@fulu.org",
-  "description": "Shows a popup and notifications when the current site may have an article on the Consumer Rights Wiki.",
+  "description": "Shows a popup when the current site may have an article on the Consumer Rights Wiki. Self-hosted server mode with minimal permissions.",
   "action": {
     "default_title": "CRW Extension",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "crw_logo.png",
       "32": "crw_logo.png",
@@ -21,18 +22,19 @@
     "128": "crw_logo.png"
   },
   "permissions": ["tabs", "storage"],
-  "host_permissions": ["<all_urls>"],
+  "optional_host_permissions": [
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "host_permissions": [
+    "https://raw.githubusercontent.com/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["assets/content.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "web_accessible_resources": [
     {
       "resources": [
@@ -40,7 +42,11 @@
         "crw_logo.png",
         "open-in-new.svg",
         "settings.svg",
-        "close.svg"
+        "close.svg",
+        "popup.html",
+        "sidebar.html",
+        "assets/popup.js",
+        "assets/sidebar.js"
       ],
       "matches": ["<all_urls>"]
     }

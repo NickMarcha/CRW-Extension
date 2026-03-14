@@ -2,9 +2,29 @@ import React, { useEffect, useState } from "react";
 import browser from "webextension-polyfill";
 
 import * as Constants from "@/shared/constants";
-import { OptionsView } from "@/options/OptionsView";
+import {
+  OptionsView,
+  type DisplayMode,
+} from "@/options/OptionsView";
 import * as Messaging from "@/messaging";
 import { MessageType } from "@/messaging/type";
+
+const readFromSync = async <T,>(
+  key: string,
+  defaultValue: T,
+): Promise<T> => {
+  try {
+    const stored = await browser.storage.sync.get(key);
+    const value = stored[key];
+    return (value !== undefined && value !== null ? value : defaultValue) as T;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const writeToSync = async (key: string, value: unknown): Promise<void> => {
+  await browser.storage.sync.set({ [key]: value });
+};
 
 const readWarningsEnabled = async (): Promise<boolean> => {
   const stored = await browser.storage.local.get(
@@ -112,6 +132,14 @@ const Options = () => {
   const [refreshingNow, setRefreshingNow] = useState<boolean>(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [serverUrl, setServerUrl] = useState<string>("");
+  const [authToken, setAuthToken] = useState<string>("");
+  const [connectionStatus, setConnectionStatus] = useState<
+    "idle" | "testing" | "ok" | "error"
+  >("idle");
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("popup");
+  const [hasSidebarApi, setHasSidebarApi] = useState<boolean>(false);
 
   useEffect(() => {
     void (async () => {
@@ -123,6 +151,9 @@ const Options = () => {
           intervalMs,
           refreshedAt,
           fetchError,
+          url,
+          token,
+          mode,
         ] = await Promise.all([
           readWarningsEnabled(),
           readSuppressedDomains(),
@@ -130,6 +161,9 @@ const Options = () => {
           readRefreshIntervalMs(),
           readLastRefreshedAt(),
           readLastRefreshError(),
+          readFromSync(Constants.STORAGE.SERVER_URL, ""),
+          readFromSync(Constants.STORAGE.AUTH_TOKEN, ""),
+          readFromSync<DisplayMode>(Constants.STORAGE.DISPLAY_MODE, "popup"),
         ]);
         setWarningsEnabled(enabled);
         setSuppressedDomains(domains);
@@ -137,6 +171,15 @@ const Options = () => {
         setRefreshIntervalMs(intervalMs);
         setLastRefreshedAt(refreshedAt);
         setLastRefreshError(fetchError);
+        setServerUrl(typeof url === "string" ? url : "");
+        setAuthToken(typeof token === "string" ? token : "");
+        setDisplayMode(
+          mode === "sidebar" || mode === "popup" ? mode : "popup",
+        );
+        setHasSidebarApi(
+          typeof (browser as { sidebarAction?: unknown }).sidebarAction ===
+            "object",
+        );
       } finally {
         setLoading(false);
       }
@@ -220,6 +263,73 @@ const Options = () => {
     });
   };
 
+  const onSaveServerConfig = async () => {
+    await writeToSync(Constants.STORAGE.SERVER_URL, serverUrl.trim());
+    await writeToSync(Constants.STORAGE.AUTH_TOKEN, authToken.trim());
+    if (serverUrl) {
+      try {
+        const origin = new URL(serverUrl).origin;
+        await browser.permissions.request({
+          origins: [`${origin}/*`],
+        });
+      } catch {
+        // Permission request failed or not supported
+      }
+    }
+  };
+
+  const onTestConnection = async () => {
+    if (!serverUrl.trim()) {
+      setConnectionStatus("error");
+      setConnectionError("Enter server URL first");
+      return;
+    }
+    if (!authToken.trim()) {
+      setConnectionStatus("error");
+      setConnectionError("Enter auth token first");
+      return;
+    }
+    setConnectionStatus("testing");
+    setConnectionError(null);
+    try {
+      const base = serverUrl.replace(/\/$/, "");
+      const r = await fetch(
+        `${base}/api/match?url=${encodeURIComponent("https://example.com")}`,
+        {
+          headers: { Authorization: `Bearer ${authToken.trim()}` },
+        },
+      );
+      if (r.ok) {
+        setConnectionStatus("ok");
+      } else {
+        const data = await r.json().catch(() => ({})) as { error?: string };
+        setConnectionStatus("error");
+        setConnectionError(data.error || `HTTP ${r.status}`);
+      }
+    } catch (err) {
+      setConnectionStatus("error");
+      setConnectionError(
+        err instanceof Error ? err.message : "Connection failed",
+      );
+    }
+  };
+
+  const onDisplayModeChange = async (mode: DisplayMode) => {
+    setDisplayMode(mode);
+    await writeToSync(Constants.STORAGE.DISPLAY_MODE, mode);
+  };
+
+  const onOpenServerDashboard = () => {
+    const base = serverUrl.trim().replace(/\/$/, "");
+    if (base) {
+      browser.tabs.create({ url: `${base}/admin/` });
+    }
+  };
+
+  const onCheckForUpdates = () => {
+    browser.tabs.create({ url: Constants.UPDATES_URL });
+  };
+
   const onRefreshNow = async () => {
     setRefreshingNow(true);
     setRefreshError(null);
@@ -256,6 +366,12 @@ const Options = () => {
       refreshError={refreshError}
       lastRefreshError={lastRefreshError}
       loading={loading}
+      serverUrl={serverUrl}
+      authToken={authToken}
+      connectionStatus={connectionStatus}
+      connectionError={connectionError}
+      displayMode={displayMode}
+      hasSidebarApi={hasSidebarApi}
       onToggleWarnings={(enabled) => {
         void onToggleWarnings(enabled);
       }}
@@ -271,6 +387,13 @@ const Options = () => {
       onRemoveSuppressedPageName={(pageName) => {
         void onRemoveSuppressedPageName(pageName);
       }}
+      onServerUrlChange={setServerUrl}
+      onAuthTokenChange={setAuthToken}
+      onSaveServerConfig={() => void onSaveServerConfig()}
+      onTestConnection={() => void onTestConnection()}
+      onDisplayModeChange={(mode) => void onDisplayModeChange(mode)}
+      onOpenServerDashboard={() => void onOpenServerDashboard()}
+      onCheckForUpdates={() => void onCheckForUpdates()}
     />
   );
 };

@@ -2,6 +2,9 @@ import type { CargoEntryType } from "@/shared/types";
 
 export const LOG_PREFIX = "[CRW_EXTENSION]";
 
+/** Link to check for extension/server updates (upstream repo) */
+export const UPDATES_URL = "https://github.com/FULU-Foundation/CRW-Extension/releases";
+
 export const DATA_REMOTE_URL =
   "https://raw.githubusercontent.com/FULU-Foundation/CRW-Extension/refs/heads/export_cargo/all_cargo_combined.json";
 export const DEFAULT_DATA_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -28,4 +31,8 @@ export const STORAGE = {
   SUPPRESSED_DOMAINS: "crw_suppressed_domains",
   SUPPRESSED_PAGE_NAMES: "crw_suppressed_page_names",
   WARNINGS_ENABLED: "crw_warnings_enabled",
+  // Server mode (storage.sync for cross-device sync)
+  SERVER_URL: "crw_server_url",
+  AUTH_TOKEN: "crw_auth_token",
+  DISPLAY_MODE: "crw_display_mode",
 };
