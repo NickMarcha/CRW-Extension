@@ -13,6 +13,7 @@ COPY tsconfig.json ./
 
 # Generate src/generated/ (required by matching - not in git)
 # Uses tsx because Node 20 in base image lacks --experimental-strip-types
+USER root
 RUN npm ci --ignore-scripts && npx tsx scripts/update-country-code-suffixes.ts
 
 # Copy server
@@ -20,6 +21,8 @@ COPY server/package*.json ./
 COPY server/src ./server-src
 COPY server/public ./public
 RUN npm ci
+
+USER pptruser
 
 EXPOSE 3000
 
