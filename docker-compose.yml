@@ -24,14 +24,13 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
+    entrypoint: ["sh", "-c"]
     command: >
-      sh -c "
-      if [ -z \"$$TUNNEL_TOKEN\" ]; then
+      if [ -z "$$TUNNEL_TOKEN" ]; then
         echo 'CLOUDFLARE_TUNNEL_TOKEN not set - skipping tunnel';
         exit 0;
       fi;
-      exec cloudflared tunnel run --token \"$$TUNNEL_TOKEN\"
-      "
+      exec cloudflared tunnel run --token "$$TUNNEL_TOKEN"
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
