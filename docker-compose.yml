@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: server/Dockerfile
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
@@ -21,6 +21,15 @@ services:
     image: redis:7-alpine
     volumes:
       - redis-data:/data
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: sh -c "if [ -z \"$$TUNNEL_TOKEN\" ]; then echo 'CLOUDFLARE_TUNNEL_TOKEN not set - skipping tunnel'; exit 0; fi; exec cloudflared tunnel run"
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - server
+    restart: on-failure
 
 volumes:
   redis-data:

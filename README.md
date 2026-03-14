@@ -59,13 +59,27 @@ ADMIN_PASSWORD=your-secure-password
 docker compose up -d
 ```
 
-The server listens on port 3000. Open the admin UI at **http://localhost:3000/admin/** (or `http://your-server-ip:3000/admin/` if remote).
+The server listens on port 3000 by default. Open the admin UI at **http://localhost:3000/admin/** (or `http://your-server-ip:3000/admin/` if remote).
+
+**Optional:** Set `PORT=3002` in `.env` to use a different host port. Set `CLOUDFLARE_TUNNEL_TOKEN=...` to run a Cloudflare Tunnel (skipped when unset).
 
 ### 3. Create a token
 
 1. Log in with your admin credentials
 2. Click **Create Token**
 3. Copy the token and paste it into the extension options
+
+### Cloudflare Tunnel (optional)
+
+To expose the server via a Cloudflare Tunnel:
+
+1. Create a tunnel in [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Networks → Tunnels
+2. Add a public hostname pointing to `http://server:3000`
+3. Add to `.env`:
+   ```env
+   CLOUDFLARE_TUNNEL_TOKEN=your-token-from-dashboard
+   ```
+4. Run `docker compose up -d` — the tunnel starts automatically when the token is set, and is skipped when it is not
 
 ### Updating the server
 
@@ -167,6 +181,8 @@ taskkill /PID <pid> /F
 Or stop containers first: `docker compose down`
 
 **Invalid token** — Tokens are stored in Redis and persist across restarts. Create a new token in the admin UI and update the extension.
+
+**Multiple compose files** — If you have both `docker-compose.yml` and `docker-compose.yaml`, remove one to avoid warnings: `rm docker-compose.yaml`
 
 ---
 
