@@ -5,9 +5,14 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 WORKDIR /app
 
-# Copy extension src first (shared matching)
+# Copy extension src and root package (needed for update script)
 COPY src ./src
+COPY scripts ./scripts
+COPY package.json package-lock.json ./
 COPY tsconfig.json ./
+
+# Generate src/generated/ (required by matching - not in git)
+RUN npm ci --ignore-scripts && npm run update:country-codes
 
 # Copy server
 COPY server/package*.json ./
@@ -17,6 +22,5 @@ RUN npm ci
 
 EXPOSE 3000
 
-# Run with tsx (resolves @/ to ./src via NODE_PATH)
 ENV NODE_PATH=/app
 CMD ["npx", "tsx", "server-src/index.ts"]
