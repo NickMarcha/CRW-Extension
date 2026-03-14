@@ -61,7 +61,7 @@ docker compose up -d
 
 The server listens on port 3000 by default. Open the admin UI at **http://localhost:3000/admin/** (or `http://your-server-ip:3000/admin/` if remote).
 
-**Optional:** Set `PORT=3002` in `.env` to use a different host port. Set `CLOUDFLARE_TUNNEL_TOKEN=...` to run a Cloudflare Tunnel (skipped when unset).
+**Optional:** Set `PORT=3002` in `.env` to use a different host port.
 
 ### 3. Create a token
 
@@ -79,7 +79,11 @@ To expose the server via a Cloudflare Tunnel:
    ```env
    CLOUDFLARE_TUNNEL_TOKEN=your-token-from-dashboard
    ```
-4. Run `docker compose up -d` — the tunnel starts automatically when the token is set, and is skipped when it is not
+4. Run with the tunnel profile:
+   ```shell
+   docker compose --profile tunnel up -d
+   ```
+   Without the `--profile tunnel` flag, only the server and Redis start (no cloudflared container).
 
 ### Updating the server
 
