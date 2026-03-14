@@ -26,6 +26,38 @@ This project is a fork of [FULU-Foundation/CRW-Extension](https://github.com/FUL
 
 ---
 
+## UI Overview
+
+> **Note:** This is currently a proof-of-concept MVP. The UI is functional but basic.
+
+### Admin Panel
+
+The server admin UI (`/admin/`) lets you manage tokens, cache, and view server info:
+
+- **Tokens** — Create API tokens for the extension. Each token can be revoked. Copy a token and paste it into the extension options.
+- **Cache** — Enable/disable caching, set entry TTL (how long matches are cached), and clear the cache. When disabled, every request fetches fresh.
+- **Server** — Version info and update instructions for Docker and Portainer.
+
+![Admin panel](docs/images/admin-panel.png)
+
+### Extension Options
+
+Configure the extension in the options page (right-click the icon → Options, or open from the popup):
+
+- **Server URL** — Your CRW server URL (e.g. `https://crw-server.example.com` or `http://localhost:3000`).
+- **Auth Token** — Paste the token from the admin panel. Use **Test connection** to verify.
+- **Display** — Choose popup or sidebar (Firefox only). The sidebar stays open alongside the page.
+
+![Extension options](docs/images/extension-options.png)
+
+### Sidebar / Popup
+
+When you click the extension icon, matches appear in a popup or sidebar. Each match shows the wiki entry title, a short description, and a **View** button to open the full article. The badge on the icon shows the match count.
+
+![Sidebar on Amazon](docs/images/sidebar.png)
+
+---
+
 ## Server Setup (Docker)
 
 ### Prerequisites
@@ -59,7 +91,7 @@ ADMIN_PASSWORD=your-secure-password
 docker compose up -d
 ```
 
-The server listens on port 3000 by default. Open the admin UI at **http://localhost:3000/admin/** (or `http://your-server-ip:3000/admin/` if remote).
+The server listens on port 3000 by default. Open the admin UI at **[http://localhost:3000/admin/](http://localhost:3000/admin/)** (or `http://your-server-ip:3000/admin/` if remote).
 
 **Optional:** Set `PORT=3002` in `.env` to use a different host port.
 
@@ -76,13 +108,13 @@ To expose the server via a Cloudflare Tunnel:
 1. Create a tunnel in [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Networks → Tunnels
 2. Add a public hostname pointing to `http://server:3000`
 3. Add to `.env`:
-   ```env
+  ```env
    CLOUDFLARE_TUNNEL_TOKEN=your-token-from-dashboard
-   ```
+  ```
 4. Run with the tunnel profile:
-   ```shell
+  ```shell
    docker compose --profile tunnel up -d
-   ```
+  ```
    Without the `--profile tunnel` flag, only the server and Redis start (no cloudflared container).
 
 ### Updating the server
@@ -116,8 +148,8 @@ docker compose up -d --build server
 4. Repository URL: your fork’s clone URL (e.g. `https://github.com/your-user/CRW-Extension.git`)
 5. Compose path: `docker-compose.yml`
 6. Add environment variables:
-   - `ADMIN_USERNAME` = `admin` (or your choice)
-   - `ADMIN_PASSWORD` = your secure password
+  - `ADMIN_USERNAME` = `admin` (or your choice)
+  - `ADMIN_PASSWORD` = your secure password
 7. Deploy the stack
 
 ### Option B: Deploy from upload
