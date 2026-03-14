@@ -12,7 +12,8 @@ COPY package.json package-lock.json ./
 COPY tsconfig.json ./
 
 # Generate src/generated/ (required by matching - not in git)
-RUN npm ci --ignore-scripts && npm run update:country-codes
+# Uses tsx because Node 20 in base image lacks --experimental-strip-types
+RUN npm ci --ignore-scripts && npx tsx scripts/update-country-code-suffixes.ts
 
 # Copy server
 COPY server/package*.json ./
